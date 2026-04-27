@@ -66,7 +66,7 @@ curriculum:
   notes: ''
 - id: m3
   title: Module 3 – RAG v2 (Production-shaped)
-  status: pending
+  status: done
   objectives:
   - Implement hybrid retrieval (BM25 + dense + RRF fusion)
   - Add cross-encoder reranking and query rewriting / HyDE

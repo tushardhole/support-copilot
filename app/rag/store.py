@@ -40,6 +40,7 @@ class RetrievedChunk:
     chunk_index: int
     score: float          # cosine similarity (higher = more relevant, max 1.0)
     token_count: int = 0
+    embedding: list[float] | None = None  # populated when include_embeddings=True
 
 
 class VectorStore:
@@ -97,32 +98,40 @@ class VectorStore:
         query_embedding: list[float],
         top_k: int = 5,
         where: dict | None = None,
+        include_embeddings: bool = False,
     ) -> list[RetrievedChunk]:
         """
         Return the top-k most similar chunks to the query embedding.
 
         Parameters
         ----------
-        query_embedding: Dense vector from the embedder.
-        top_k:           Number of results (default 5).
-        where:           Optional ChromaDB metadata filter, e.g. {"source": "faq.md"}.
+        query_embedding:   Dense vector from the embedder.
+        top_k:             Number of results (default 5).
+        where:             Optional ChromaDB metadata filter.
+        include_embeddings: If True, populate RetrievedChunk.embedding (needed for MMR).
         """
+        include = ["documents", "metadatas", "distances"]
+        if include_embeddings:
+            include.append("embeddings")
+
         kwargs: dict = dict(
             query_embeddings=[query_embedding],
             n_results=min(top_k, self.count()),
-            include=["documents", "metadatas", "distances"],
+            include=include,
         )
         if where:
             kwargs["where"] = where
 
         result = self._collection.query(**kwargs)
 
+        raw_embeddings = result.get("embeddings", [[]])[0] if include_embeddings else []
+
         chunks: list[RetrievedChunk] = []
-        for doc, meta, dist in zip(
+        for i, (doc, meta, dist) in enumerate(zip(
             result["documents"][0],
             result["metadatas"][0],
             result["distances"][0],
-        ):
+        )):
             # ChromaDB returns cosine *distance* (0 = identical, 2 = opposite).
             # Convert to similarity score in [0, 1] for intuitive ranking.
             similarity = 1.0 - dist / 2.0
@@ -134,10 +143,33 @@ class VectorStore:
                     chunk_index=int(meta.get("chunk_index", 0)),
                     score=round(similarity, 4),
                     token_count=int(meta.get("token_count", 0)),
+                    embedding=raw_embeddings[i] if raw_embeddings else None,
                 )
             )
 
         return sorted(chunks, key=lambda c: c.score, reverse=True)
+
+    def get_all(self) -> list[RetrievedChunk]:
+        """
+        Return every chunk in the collection (used by BM25Index to build its corpus).
+        Returns an empty list if the collection is empty.
+        """
+        if self.count() == 0:
+            return []
+        result = self._collection.get(include=["documents", "metadatas"])
+        chunks: list[RetrievedChunk] = []
+        for doc, meta in zip(result["documents"], result["metadatas"]):
+            chunks.append(
+                RetrievedChunk(
+                    chunk_id=meta.get("chunk_id", ""),
+                    text=doc,
+                    source=str(meta.get("source", "")),
+                    chunk_index=int(meta.get("chunk_index", 0)),
+                    score=1.0,
+                    token_count=int(meta.get("token_count", 0)),
+                )
+            )
+        return chunks
 
     def count(self) -> int:
         """Number of chunks currently in the collection."""

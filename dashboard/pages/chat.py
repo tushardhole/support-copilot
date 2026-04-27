@@ -21,11 +21,21 @@ def _get_client() -> LLMClient:
     return st.session_state["llm_client"]
 
 
-def _rag_retrieve(query: str, top_k: int) -> tuple[str, list]:
+def _rag_retrieve(query: str, top_k: int, use_hybrid: bool) -> tuple[str, list]:
     """Lazy import so the page loads even before the KB is ingested."""
     try:
-        from app.rag.retrieve import retrieve_and_format
-        return retrieve_and_format(query, top_k=top_k)
+        if use_hybrid:
+            from app.rag.hybrid_retrieve import hybrid_retrieve_and_format
+            return hybrid_retrieve_and_format(
+                query, top_k=top_k,
+                use_rerank=False,   # rerank needs sentence-transformers download
+                use_mmr=True,
+                use_hyde=False,
+                use_query_rewrite=False,
+            )
+        else:
+            from app.rag.retrieve import retrieve_and_format
+            return retrieve_and_format(query, top_k=top_k)
     except Exception as exc:
         st.warning(f"RAG retrieval error: {exc}", icon="⚠️")
         return "", []
@@ -43,8 +53,10 @@ def render() -> None:
         use_rag = st.toggle("🔍 Use RAG (KB lookup)", value=False)
         if use_rag:
             top_k = st.slider("Top-K chunks", 1, 10, 5)
+            use_hybrid = st.toggle("⚡ Hybrid (BM25+dense+MMR)", value=True)
         else:
             top_k = 5
+            use_hybrid = False
         st.divider()
         if st.button("🗑️ Clear chat"):
             st.session_state["messages"] = []
@@ -93,7 +105,7 @@ def render() -> None:
         retrieved_chunks = []
         if use_rag:
             with st.spinner("Searching KB…"):
-                context, retrieved_chunks = _rag_retrieve(user_input, top_k)
+                context, retrieved_chunks = _rag_retrieve(user_input, top_k, use_hybrid)
 
             if context:
                 system_prompt = load("rag_answer", version=1, company="Acme",
@@ -135,7 +147,7 @@ def render() -> None:
         st.session_state["messages"].append(
             {"role": "assistant", "content": response_text, "sources": sources}
         )
-        mode_label = f"RAG (top-{top_k})" if use_rag else "direct"
+        mode_label = (f"hybrid RAG (top-{top_k})" if use_hybrid else f"dense RAG (top-{top_k})") if use_rag else "direct"
         st.caption(f"Model: `{model_override or settings.llm_model}` · mode: {mode_label}")
 
     # ── Roadmap ───────────────────────────────────────────────────────────────
@@ -145,7 +157,8 @@ def render() -> None:
 | Module | Feature |
 |--------|---------|
 | M1 ✅ | Streaming LLM chat + versioned system prompt |
-| M2 ✅ | RAG: KB lookup → cited answers |
+| M2 ✅ | Dense RAG: KB lookup → cited answers |
+| M3 ✅ | Hybrid RAG: BM25+dense+RRF+MMR |
 | M4 | Tool calling: order lookup, ticket creation |
 | M5 | Multi-agent: triage → specialist → reviewer |
 | M6 | Guardrails: PII redaction, jailbreak shield |
