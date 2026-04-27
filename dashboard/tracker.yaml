@@ -45,7 +45,7 @@ curriculum:
   notes: ''
 - id: m2
   title: Module 2 – RAG v1 (Naive)
-  status: pending
+  status: done
   objectives:
   - Ingest sample support KB (markdown + PDFs) with recursive token-aware chunking
   - Embed via configured provider and store in ChromaDB
