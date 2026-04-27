@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Secrets — NEVER commit
+.env
+
+# Data / artifacts
+data/chroma/
+data/db.sqlite
+evals_results/*.json
+evals_results/*.csv
+
+# Streamlit
+.streamlit/
+
+# uv
+uv.lock
+
+# Misc
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.ipynb_checkpoints
