@@ -69,7 +69,7 @@ support-copilot/
 | 0 | Scaffold + Tracker Dashboard | ✅ |
 | 1 | LLM-agnostic Client + Structured Outputs | ✅ |
 | 2 | RAG v1 — Naive (chunk → embed → retrieve → answer) | ✅ |
-| 3 | RAG v2 — Production (BM25+dense, rerank, HyDE, Ragas evals) | ⬜ |
+| 3 | RAG v2 — Production (BM25+dense, rerank, HyDE, Ragas evals) | ✅ |
 | 4 | Tools + Single Agent (ReAct, tool registry, SQLite) | ⬜ |
 | 5 | Multi-agent with LangGraph (Triage → specialists → Reviewer) | ⬜ |
 | 6 | Guardrails + Safety (Presidio PII, jailbreak, output grounding) | ⬜ |
