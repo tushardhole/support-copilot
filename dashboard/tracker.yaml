@@ -1,0 +1,246 @@
+curriculum:
+  - id: m0
+    title: "Module 0 – Scaffold + Tracker Dashboard"
+    status: in_progress   # pending | in_progress | done
+    objectives:
+      - Set up the repo with uv + pyproject.toml (all deps declared up front)
+      - Implement 12-factor config via pydantic-settings (model, base_url, api_key, embed)
+      - Build the Streamlit Tracker Dashboard skeleton (Journey page reading this file)
+    concepts:
+      - "12-factor app config: secrets in env vars, never in code"
+      - "pydantic-settings: typed config with validation + .env file support"
+      - "uv: modern Python package / project manager (fast, lockfile-based)"
+      - "Project layout conventions for LLM apps"
+    interview_qs:
+      - "How do you keep an LLM app vendor-neutral?"
+      - "Why should API keys never live in source code?"
+      - "What is the adapter pattern and how does it apply to LLM clients?"
+    code_files:
+      - app/config.py
+      - pyproject.toml
+      - .env.example
+      - dashboard/app.py
+      - dashboard/tracker.yaml
+    notes: ""
+
+  - id: m1
+    title: "Module 1 – LLM-agnostic Client + Structured Outputs"
+    status: pending
+    objectives:
+      - Build a thin wrapper over openai.OpenAI(base_url=...) with chat() and chat_structured()
+      - Add retry logic via tenacity (exponential back-off, jitter)
+      - Add token + cost accounting hook
+      - Build a versioned prompt template loader from app/prompts/
+    concepts:
+      - "openai SDK: base_url + api_key pattern for vendor neutrality"
+      - "Structured outputs: JSON mode vs tool-call-as-output vs response_format=json_schema"
+      - "tenacity: retry strategies, when to retry vs fail fast"
+      - "Prompt versioning: why prompts are code, not comments"
+    interview_qs:
+      - "How do you guarantee structured output from an LLM?"
+      - "What retry strategy would you use for a rate-limited LLM API?"
+      - "When does JSON mode fail? What is the schema repair loop?"
+    code_files:
+      - app/llm.py
+      - app/prompts/
+    notes: ""
+
+  - id: m2
+    title: "Module 2 – RAG v1 (Naive)"
+    status: pending
+    objectives:
+      - Ingest sample support KB (markdown + PDFs) with recursive token-aware chunking
+      - Embed via configured provider and store in ChromaDB
+      - Top-k retrieval → stuff into prompt → answer with citations
+    concepts:
+      - "RAG pipeline: ingest → chunk → embed → store → retrieve → generate"
+      - "Chunking strategies: fixed-size vs recursive vs semantic"
+      - "ChromaDB: local vector store with persistent storage"
+      - "Citation enforcement: grounding answers in retrieved context"
+    interview_qs:
+      - "Why does naive RAG fail in production?"
+      - "How does chunk size affect recall vs precision?"
+      - "What is the lost-in-the-middle problem?"
+    code_files:
+      - app/rag/ingest.py
+      - app/rag/retrieve.py
+      - data/kb/
+    notes: ""
+
+  - id: m3
+    title: "Module 3 – RAG v2 (Production-shaped)"
+    status: pending
+    objectives:
+      - Implement hybrid retrieval (BM25 + dense + RRF fusion)
+      - Add cross-encoder reranking and query rewriting / HyDE
+      - Enforce MMR diversity and citation in every answer
+      - Run Ragas evals (faithfulness, answer relevancy, context precision/recall)
+    concepts:
+      - "Hybrid retrieval: BM25 lexical + dense semantic + RRF fusion"
+      - "Cross-encoder reranking: why it beats bi-encoder at top-k"
+      - "HyDE: Hypothetical Document Embeddings for query expansion"
+      - "Ragas: framework for evaluating RAG pipelines automatically"
+    interview_qs:
+      - "What is the difference between bi-encoder and cross-encoder retrieval?"
+      - "How do you evaluate a RAG system without ground truth?"
+      - "When does HyDE help and when does it hurt?"
+    code_files:
+      - app/rag/hybrid_retrieve.py
+      - app/rag/rerank.py
+      - app/evals/ragas_eval.py
+    notes: ""
+
+  - id: m4
+    title: "Module 4 – Tools + Single Agent (ReAct)"
+    status: pending
+    objectives:
+      - Build SQLite DB with fake users, orders, tickets
+      - Implement tool registry with Pydantic-validated args (kb_search, lookup_order, get_user, create_ticket)
+      - Single agent loop using OpenAI tool-calling with explicit state machine
+    concepts:
+      - "Function calling: how OpenAI tool-use works under the hood"
+      - "Tool registry pattern: schema validation + idempotency + max-step cap"
+      - "ReAct: Reason + Act loop for tool-augmented LLMs"
+      - "Pydantic for tool arg validation: parse before calling"
+    interview_qs:
+      - "How do you make tool calls reliable?"
+      - "What is the difference between ReAct and plan-and-execute?"
+      - "How do you prevent infinite tool-call loops?"
+    code_files:
+      - app/tools/registry.py
+      - app/tools/kb_search.py
+      - app/tools/lookup_order.py
+      - app/tools/create_ticket.py
+      - app/agents/single_agent.py
+      - data/db.sqlite
+    notes: ""
+
+  - id: m5
+    title: "Module 5 – Multi-agent with LangGraph"
+    status: pending
+    objectives:
+      - Build graph: Triage → {KBAgent, AccountAgent, EscalationAgent} → Reviewer → User
+      - Implement explicit shared state, conditional edges, handoffs, summarization
+      - Stream intermediate steps to dashboard Traces page
+    concepts:
+      - "LangGraph: stateful graph execution for multi-agent flows"
+      - "Supervisor vs swarm vs hand-off topologies"
+      - "Shared state design: what every node reads and writes"
+      - "Streaming: SSE + generator patterns for live agent output"
+    interview_qs:
+      - "When is multi-agent overkill vs essential?"
+      - "How do you design agent handoffs without losing context?"
+      - "What are the cost implications of multi-agent chains?"
+    code_files:
+      - app/agents/graph.py
+      - app/agents/triage_agent.py
+      - app/agents/kb_agent.py
+      - app/agents/account_agent.py
+      - app/agents/escalation_agent.py
+    notes: ""
+
+  - id: m6
+    title: "Module 6 – Guardrails + Safety"
+    status: pending
+    objectives:
+      - Input: PII detection (Presidio) + redaction, jailbreak/prompt-injection heuristics, topic filter
+      - Output: schema validation, grounding check, refusal patterns
+      - Block-list + allow-list configs
+    concepts:
+      - "Presidio: named-entity recognition for PII detection and anonymization"
+      - "Prompt injection: direct vs indirect attack vectors"
+      - "OWASP LLM Top-10: awareness of the main LLM security risks"
+      - "Grounding check: verifying answer is supported by retrieved context"
+    interview_qs:
+      - "How do you detect and mitigate prompt injection?"
+      - "What are the trade-offs between model-based and rule-based guardrails?"
+      - "How do false positives in PII detection affect user experience?"
+    code_files:
+      - app/guardrails/input_guard.py
+      - app/guardrails/output_guard.py
+      - app/guardrails/pii.py
+    notes: ""
+
+  - id: m7
+    title: "Module 7 – Evals + Observability"
+    status: pending
+    objectives:
+      - Three eval tiers: unit (deterministic), component (Ragas), end-to-end (LLM-as-judge)
+      - Regression suite in pytest with golden sets
+      - Add Langfuse tracing: every LLM call + tool call + retrieval gets a span
+    concepts:
+      - "Eval tiers: unit vs component vs end-to-end"
+      - "LLM-as-judge: rubric design, judge-model bias, calibration"
+      - "Langfuse: open-source LLM observability with traces, scores, cost tracking"
+      - "Eval-set rot: why golden sets need maintenance"
+    interview_qs:
+      - "How do you know your agent didn't regress between deployments?"
+      - "What is judge-model bias and how do you reduce it?"
+      - "How do you design a golden eval set for a RAG system?"
+    code_files:
+      - app/evals/unit_evals.py
+      - app/evals/e2e_judge.py
+      - tests/
+    notes: ""
+
+  - id: m8
+    title: "Module 8 – Memory + Personalization"
+    status: pending
+    objectives:
+      - Short-term: rolling conversation buffer + summary memory
+      - Long-term: per-user memory store (SQLite + embeddings) with read/write tools
+    concepts:
+      - "Rolling buffer: keep last N turns, summarize older history"
+      - "Summary memory: compress long conversations into a running summary"
+      - "Long-term memory: embeddings + retrieval as an external memory layer"
+      - "Memory privacy: what to store, retention policies, PII in memory"
+    interview_qs:
+      - "How is retrieval-augmented memory different from fine-tuning?"
+      - "How do you handle memory staleness or conflicting memories?"
+      - "What are the privacy implications of per-user memory stores?"
+    code_files:
+      - app/agents/memory.py
+      - app/tools/memory_tools.py
+    notes: ""
+
+  - id: m9
+    title: "Module 9 – Deployment"
+    status: pending
+    objectives:
+      - FastAPI streaming endpoint (SSE) with rate limiting, auth header, health + /metrics
+      - Multi-stage Dockerfile
+      - docker-compose with dashboard + API + Langfuse
+    concepts:
+      - "SSE: Server-Sent Events for streaming LLM responses to the browser"
+      - "Multi-stage Docker build: separate build and runtime layers for smaller images"
+      - "Rate limiting: token bucket vs sliding window; per-user vs global"
+      - "Cost guardrails: max tokens, timeout, model routing in production"
+    interview_qs:
+      - "What is the trade-off between streaming UX and eval simplicity?"
+      - "What does your production LLM app checklist look like?"
+      - "How do you implement per-user cost caps?"
+    code_files:
+      - app/api/main.py
+      - Dockerfile
+      - docker-compose.yml
+    notes: ""
+
+  - id: m10
+    title: "Module 10 – System Design + Interview Prep"
+    status: pending
+    objectives:
+      - Write INTERVIEW.md with 25 high-signal design walkthroughs
+      - Cover RAG vs fine-tune, evals, multi-agent topology, scaling vector search, model routing
+      - Tie every question back to specific files in the repo
+    concepts:
+      - "RAG vs fine-tuning: when each is the right tool"
+      - "Scaling vector search: ANN indices, sharding, approximate vs exact"
+      - "Model routing: cost vs quality trade-offs, cascade strategies"
+      - "Hallucination control: retrieval grounding, self-consistency, citation enforcement"
+    interview_qs:
+      - "When would you fine-tune instead of using RAG?"
+      - "How would you scale this system to 10M queries/day?"
+      - "Walk me through your approach to reducing hallucinations."
+    code_files:
+      - INTERVIEW.md
+    notes: ""
